@@ -27,6 +27,10 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var pressed = false
 
+    // Bottom of the info card and top of the Move/Lock controls, so the counter stays between them
+    @State private var topLimit: CGFloat = 0
+    @State private var bottomLimit: CGFloat = .infinity
+
     private var topLocked: Bool { counterLocked || !positionLocked }
 
     var body: some View {
@@ -36,6 +40,9 @@ struct ContentView: View {
                     topBar
                     infoCard
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("screen")).maxY } action: {
+                    topLimit = $0
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 tapButton
@@ -44,9 +51,13 @@ struct ContentView: View {
                              including: positionLocked ? .subviews : .all)
 
                 bottomControls
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("screen")).minY } action: {
+                        bottomLimit = $0
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 8)
             }
+            .coordinateSpace(.named("screen"))
         }
         .background {
             BackgroundView(key: background, photo: photo, dim: photoDim)
@@ -278,9 +289,13 @@ struct ContentView: View {
         let halfH = itemSize.height / 2
         let x = CGFloat(buttonX) * size.width + dragOffset.width
         let y = CGFloat(buttonY) * size.height + dragOffset.height
+        // Keep it below the info card and above the Move/Lock buttons.
+        // If there isn't room for both, the buttons win so they stay tappable.
+        let minY = max(topLimit + 8, 0) + halfH
+        let maxY = min(bottomLimit - 8, size.height) - halfH
         return CGPoint(
             x: min(max(x, halfW), max(size.width - halfW, halfW)),
-            y: min(max(y, halfH), max(size.height - halfH, halfH))
+            y: max(min(max(y, minY), maxY), halfH)
         )
     }
 
